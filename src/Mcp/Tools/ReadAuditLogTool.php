@@ -28,7 +28,7 @@ final readonly class ReadAuditLogTool
             $entries[] = [
                 'timestamp' => $entry->timestamp()->format('Y-m-d H:i:s'),
                 'action' => $entry->action(),
-                'user' => $entry->user(),
+                'actor' => $entry->actor(),
                 'object' => $entry->object(),
                 'details' => $entry->details(),
             ];

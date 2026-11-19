@@ -35,7 +35,7 @@ final readonly class QuotationAssistant
         string $order,
         string $customer,
         string $project,
-        string $user = 'office',
+        string $actor = 'office',
     ): Answer {
         $matches = $this->searcher->search($order, 10);
 
@@ -120,7 +120,7 @@ final readonly class QuotationAssistant
             $this->entityManager->persist($draft);
             $this->entityManager->persist(new AuditEntry(
                 'quotation_draft_created',
-                $user,
+                $actor,
                 'quotation_draft:'.$draft->number(),
                 [
                     'customer' => $customer,

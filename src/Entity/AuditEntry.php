@@ -11,6 +11,11 @@ use Craft\Assistant\Repository\AuditEntryRepository;
  * An append-only audit entry.
  *
  * Entries are never changed — who did what, when, is written once and stays.
+ *
+ * The column is called "actor" and not "user": "user" is a reserved word in
+ * PostgreSQL, and Doctrine does not quote it when it builds the INSERT. An
+ * unquoted "user" in the column list is a syntax error, which broke the whole
+ * approval transaction.
  */
 #[ORM\Entity(repositoryClass: AuditEntryRepository::class)]
 #[ORM\Table(name: 'audit_entry')]
@@ -29,7 +34,7 @@ class AuditEntry
     private string $action;
 
     #[ORM\Column(length: 64)]
-    private string $user;
+    private string $actor;
 
     #[ORM\Column(length: 64)]
     private string $object;
@@ -37,11 +42,11 @@ class AuditEntry
     #[ORM\Column(type: 'json')]
     private array $details;
 
-    public function __construct(string $action, string $user, string $object, array $details = [])
+    public function __construct(string $action, string $actor, string $object, array $details = [])
     {
         $this->timestamp = new \DateTimeImmutable();
         $this->action = $action;
-        $this->user = $user;
+        $this->actor = $actor;
         $this->object = $object;
         $this->details = $details;
     }
@@ -61,9 +66,9 @@ class AuditEntry
         return $this->action;
     }
 
-    public function user(): string
+    public function actor(): string
     {
-        return $this->user;
+        return $this->actor;
     }
 
     public function object(): string
