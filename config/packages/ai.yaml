@@ -1,0 +1,21 @@
+ai:
+    platform:
+        # Chat and agent run locally via Ollama — no API key, no data leaving the machine.
+        ollama:
+            endpoint: '%env(OLLAMA_BASE_URL)%'
+
+        # Embeddings via the OpenAI-compatible interface of the same Ollama server.
+        # The Ollama bridge (1.0.0-BETA1) carries no embedding models in its own
+        # catalogue, which is why the embedding side uses the generic bridge.
+        generic:
+            embeddings:
+                # The generic bridge appends the path "/v1/embeddings" itself —
+                # the base URL must therefore be given without /v1.
+                base_url: '%env(OLLAMA_BASE_URL)%'
+                api_key: 'ollama'
+                model_catalog:
+                    models:
+                        nomic-embed-text:
+                            class: 'Symfony\AI\Platform\Bridge\Generic\EmbeddingsModel'
+                            capabilities:
+                                - 'embeddings'

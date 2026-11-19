@@ -1,0 +1,163 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<div class="layout">
+    <section class="panel chat">
+        <div class="chat-head">
+            <label>Mode</label>
+            <button type="button" class="ghost active" data-mode="query">Question</button>
+            <button type="button" class="ghost" data-mode="quotation">Quotation draft</button>
+            <span class="spacer"></span>
+            <input type="text" id="customer" placeholder="Customer" value="Sample Customer Ltd" size="18">
+            <input type="text" id="project" placeholder="Project" value="Bathroom refurbishment, Sample Street 12" size="26">
+        </div>
+
+        <div class="messages" id="messages">
+            <div class="msg bot">
+                <div class="role">Assistant</div>
+                <div class="bubble">
+                    <p>I work exclusively with the master data of this business and cite date and source for every price.</p>
+                    <p class="muted">Examples: “What does the tiling work in the bathroom cost?” · “How much does a heat exchanger cost?” · “Create a quotation for a bathroom refurbishment, 12 m² of tiles.”</p>
+                </div>
+            </div>
+        </div>
+
+        <form class="composer" id="composer">
+            <textarea id="input" placeholder="Ask a question … (Enter = send, Shift+Enter = new line)"></textarea>
+            <button type="submit" id="send">Ask</button>
+        </form>
+    </section>
+
+    <aside class="side">
+        <div class="panel box">
+            <h2>Sources</h2>
+            <div id="sources"><span class="muted">No sources yet.</span></div>
+        </div>
+        <div class="panel box" id="warnbox" style="display:none">
+            <h2>Checks</h2>
+            <div id="warnings"></div>
+        </div>
+        <div class="panel box" id="draftbox" style="display:none">
+            <h2>Quotation draft</h2>
+            <div id="draft"></div>
+        </div>
+    </aside>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+    const messages = document.getElementById('messages');
+    const sourcesBox = document.getElementById('sources');
+    const warnBox = document.getElementById('warnbox');
+    const warningsBox = document.getElementById('warnings');
+    const draftBox = document.getElementById('draftbox');
+    const draftContent = document.getElementById('draft');
+    const input = document.getElementById('input');
+    const send = document.getElementById('send');
+    let mode = 'query';
+
+    document.querySelectorAll('[data-mode]').forEach((button) => {
+        button.addEventListener('click', () => {
+            mode = button.dataset.mode;
+            document.querySelectorAll('[data-mode]').forEach((b) => b.classList.remove('active'));
+            button.classList.add('active');
+            input.placeholder = mode === 'quotation'
+                ? 'Describe the work, e.g. “Bathroom refurbishment, 12 m² of tiles, replace pipework, install WC”'
+                : 'Ask a question …';
+        });
+    });
+
+    function esc(text) {
+        return String(text).replace(/[&<>]/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
+    }
+
+    function markup(text) {
+        return esc(text)
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\n/g, '<br>');
+    }
+
+    function append(message, role) {
+        const div = document.createElement('div');
+        div.className = 'msg ' + role;
+        div.innerHTML = '<div class="role">' + (role === 'user' ? 'You' : 'Assistant') + '</div><div class="bubble">' + markup(message) + '</div>';
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    function showSources(sources) {
+        if (!sources || sources.length === 0) {
+            sourcesBox.innerHTML = '<span class="muted">No sources — nothing from the master data was used.</span>';
+            return;
+        }
+        sourcesBox.innerHTML = sources.map((s) =>
+            '<div class="quelle"><div class="k">' + esc(s.id) + '</div><div class="b">' + esc(s.label) +
+            '</div><div class="h">' + esc(s.origin) + '</div></div>'
+        ).join('');
+    }
+
+    function showWarnings(warnings) {
+        if (!warnings || warnings.length === 0) {
+            warnBox.style.display = 'none';
+            return;
+        }
+        warnBox.style.display = '';
+        warningsBox.innerHTML = warnings.map((w) => '<div class="warnung">' + esc(w) + '</div>').join('');
+    }
+
+    document.getElementById('composer').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const question = input.value.trim();
+        if (question === '') return;
+
+        append(question, 'user');
+        input.value = '';
+        send.disabled = true;
+        send.textContent = '…';
+
+        const thinking = document.createElement('div');
+        thinking.className = 'msg bot';
+        thinking.innerHTML = '<div class="role">Assistant</div><div class="bubble muted">Master data is being evaluated …</div>';
+        messages.appendChild(thinking);
+        messages.scrollTop = messages.scrollHeight;
+
+        try {
+            const response = await fetch('/api/question', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    question: question,
+                    mode: mode,
+                    customer: document.getElementById('customer').value,
+                    project: document.getElementById('project').value
+                })
+            });
+            const data = await response.json();
+            thinking.remove();
+            append(data.text || 'No answer received.', 'bot');
+            showSources(data.sources);
+            showWarnings(data.warnings);
+            if (data.draft_id) {
+                draftBox.style.display = '';
+                draftContent.innerHTML = '<a href="/draft/' + data.draft_id + '">Open quotation draft</a>';
+            }
+        } catch (error) {
+            thinking.remove();
+            append('Error while asking: ' + error, 'bot');
+        }
+
+        send.disabled = false;
+        send.textContent = 'Ask';
+        input.focus();
+    });
+
+    input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            document.getElementById('composer').requestSubmit();
+        }
+    });
+</script>
+{% endblock %}

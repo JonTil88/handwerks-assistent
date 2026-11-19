@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=../vendor/symfony/routing/Loader/schema/routing.schema.json
+
+controllers:
+    resource: routing.controllers
+
+# Der MCP-Bundle registriert seine Route (/mcp) selbst über einen Routing-Loader.
+# Ein zusätzlicher 'mcp'-Eintrag hier würde den Loader doppelt hinzufügen.

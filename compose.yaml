@@ -1,0 +1,60 @@
+services:
+  app:
+    build:
+      context: .
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: dev
+      DATABASE_URL: "postgresql://handwerks:handwerks@db:5432/handwerks?serverVersion=17&charset=utf8"
+      OLLAMA_BASE_URL: "http://ollama:11434"
+      OLLAMA_LLM_MODEL: "${OLLAMA_LLM_MODEL:-qwen3:8b}"
+      OLLAMA_EMBEDDING_MODEL: "${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}"
+      # So that the files installed in the container belong to the host user.
+      DOCKER_UID: "${DOCKER_UID:-1000}"
+      DOCKER_GID: "${DOCKER_GID:-1000}"
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    command: ["php", "-S", "0.0.0.0:8000", "-t", "public"]
+
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: handwerks
+      POSTGRES_PASSWORD: handwerks
+      POSTGRES_DB: handwerks
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U handwerks -d handwerks"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+
+  # Local models. No API key, no data leaving the machine.
+  # OLLAMA_MODELS_DIR points at an existing model directory of the host, so the
+  # models do not have to be downloaded again.
+  ollama:
+    image: ollama/ollama:latest
+    gpus: all
+    volumes:
+      # The host directory already contains blobs/ and manifests/ and is
+      # therefore mounted as the model directory itself.
+      - "${OLLAMA_MODELS_DIR:-/var/lib/ollama}:/root/.ollama/models"
+    # No port to the outside: the application reaches Ollama over the internal
+    # network. For own access: docker compose exec ollama ollama list
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+volumes:
+  dbdata:

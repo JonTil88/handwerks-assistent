@@ -1,0 +1,25 @@
+mcp:
+    servers:
+        default:
+            name: 'craft-assistant'
+            version: '1.0.0'
+            description: 'Price and calculation data of a trade business, with the origin of every figure.'
+            instructions: |
+                This server delivers services, price snapshots and calculated quotation lines of a
+                trade business. Every price carries its origin (date and source).
+
+                Notes for the usage:
+                - Always obtain numbers via the tools, never estimate them.
+                - "calculate_quotation" calculates deterministically; the model does not calculate.
+                - Drafts are only approved after "approve_quotation_draft".
+
+            registry:
+                tools: ['Craft\Assistant\Mcp\Tools\']
+
+            http:
+                path: /mcp
+                allowed_hosts: ['localhost', '127.0.0.1', 'handwerks-assistant']
+
+            transports:
+                stdio: true
+                http: true

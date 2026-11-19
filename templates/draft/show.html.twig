@@ -1,0 +1,85 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Quotation draft {{ draft.number }}{% endblock %}
+
+{% block body %}
+{% for message in app.flashes('status') %}
+    <div class="flash">{{ message }}</div>
+{% endfor %}
+
+<section class="panel" style="padding:18px; margin-bottom:16px">
+    <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap">
+        <h1 style="font-size:19px; margin:0">Quotation draft {{ draft.number() }}</h1>
+        <span class="badge {{ draft.status().value == 'approved' ? 'ok' : 'draft' }}">{{ draft.status().label() }}</span>
+        <span class="spacer" style="flex:1"></span>
+        <span class="muted">Customer: {{ draft.customer() }} · Project: {{ draft.project() }}</span>
+    </div>
+    <div class="muted mono" style="margin-top:8px">
+        created {{ draft.createdAt().format('d.m.Y H:i') }}
+        {% if draft.approvedAt() %}· approved {{ draft.approvedAt().format('d.m.Y H:i') }} by {{ draft.approvedBy() }}{% endif %}
+    </div>
+    {% if draft.note() %}
+        <div style="margin-top:12px"><span class="badge">{{ draft.note() }}</span></div>
+    {% endif %}
+</section>
+
+<section class="panel" style="padding:0; overflow:hidden">
+    <table>
+        <thead>
+            <tr>
+                <th>No.</th>
+                <th>Service</th>
+                <th>Quantity</th>
+                <th>Labour</th>
+                <th>Material</th>
+                <th>Subcontr. / Machine</th>
+                <th>Markup</th>
+                <th style="text-align:right">Total net</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for line in draft.lines() %}
+            <tr>
+                <td class="mono">{{ line.serviceNumber() }}</td>
+                <td>
+                    {{ line.text() }}
+                    {% if line.remark() %}
+                        <div class="warnung" style="margin-top:6px">{{ line.remark() }}</div>
+                    {% endif %}
+                    {% if line.priceSnapshot() %}
+                        <div class="muted mono" style="font-size:12px; margin-top:4px">{{ line.priceSnapshot() }}</div>
+                    {% endif %}
+                </td>
+                <td class="num">{{ line.quantity() }} {{ line.unit() }}</td>
+                <td class="num">{{ line.labourCost() }}</td>
+                <td class="num">{{ line.materialCost() }}</td>
+                <td class="num">{{ line.subcontractorCost() }} / {{ line.machineCost() }}</td>
+                <td class="num">{{ line.markupPercent() }} %</td>
+                <td class="num">{{ line.totalNet() }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="7" style="text-align:right">Net total</th>
+                <th class="num" style="font-size:15px">{{ draft.grandTotal() }} €</th>
+            </tr>
+        </tfoot>
+    </table>
+</section>
+
+<div style="margin-top:16px; display:flex; gap:12px; align-items:center">
+    {% if draft.status().value == 'draft' %}
+        <form method="post" action="{{ path('app_draft_approve', {id: draft.id()}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('approve') }}">
+            <input type="hidden" name="person" value="office">
+            <button type="submit">Approve</button>
+        </form>
+        <span class="muted">Approval is a human act and is recorded in the audit log.</span>
+    {% else %}
+        <span class="hinweis">Approved on {{ draft.approvedAt().format('d.m.Y H:i') }} by {{ draft.approvedBy() }}.</span>
+    {% endif %}
+    <span style="flex:1"></span>
+    <a href="{{ path('app_chat') }}">Back to the assistant</a>
+</div>
+{% endblock %}
